@@ -1,0 +1,109 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Tag a new pre-release
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Release year (e.g. 22)'
+        required: true
+        type: number
+      month:
+        description: 'Release month (e.g. 5)'
+        required: true
+        type: number
+      minor:
+        description: 'Release minor (e.g. 0)'
+        required: true
+        type: number
+      prerelease_type:
+        description: 'Pre-release type'
+        required: true
+        type: choice
+        options:
+          - beta
+          - rc
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  tag_prerelease:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Checkout brand
+        uses: actions/checkout@v3
+        with:
+          path: ./brand
+          token: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Checkout frontend
+        uses: actions/checkout@v3
+        with:
+          path: ./frontend
+          repository: karlw-bjss/specsavers_frontend
+          token: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Common git config
+        run: /bin/bash ./brand/.github/workflows/scripts/common_git_config.sh
+        env:
+          ACTOR: ${{ github.actor }}
+      
+      - id: getReleaseInfo
+        name: Get release info
+        run: /bin/bash ./brand/.github/workflows/scripts/get_release_info.sh
+        env:
+          RELEASE_YEAR: ${{ github.event.inputs.year }}
+          RELEASE_MONTH: ${{ github.event.inputs.month }}
+          RELEASE_MINOR: ${{ github.event.inputs.minor }}
+          GITHUB_TOKEN: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Exit if release branch does not exist
+        if: ${{ steps.getReleaseInfo.outputs.release_branch_exists == 'F' }}
+        run: |
+          echo "::error::Release branch does not exist"
+          exit 1
+      
+      - name: Extract details for beta
+        if: ${{ github.event.inputs.prerelease_type == 'beta' }}
+        run: |
+          echo "SOURCE_REF=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "TAG_NAME=$NEXT_BETA" >> $GITHUB_ENV
+        env:
+          RELEASE_BRANCH: ${{ steps.getReleaseInfo.outputs.release_branch }}
+          NEXT_BETA: ${{ steps.getReleaseInfo.outputs.next_beta }}
+     
+      - name: Check and extract details for rc
+        if: ${{ github.event.inputs.prerelease_type == 'rc' }}
+        run: |
+          if [[ "$CURRENT_BETA" == "NONE" ]]; then
+            echo "::error::No current beta"
+            exit 1
+          fi
+          
+          echo "SOURCE_REF=$CURRENT_BETA" >> $GITHUB_ENV
+          echo "TAG_NAME=$NEXT_RC" >> $GITHUB_ENV
+        env:
+          CURRENT_BETA: ${{ steps.getReleaseInfo.outputs.current_beta }}
+          NEXT_RC: ${{ steps.getReleaseInfo.outputs.next_rc }}
+      
+      - name: DEBUG
+        run: echo "::notice::Will tag $TAG_NAME from $SOURCE_REF"
+        
+      - name: Tag
+        run: /bin/bash ./brand/.github/workflows/scripts/tag_release.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPECS_TOKEN }}
+     
+      - name: Deploy
+        run: |
+          echo "::notice::Here we would trigger deployments to beta"
+      
+      - name: Success
+        run: |
+          echo "::notice::Here we would send any emails etc"

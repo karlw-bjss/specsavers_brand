@@ -1,0 +1,122 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Tag release
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Release year (e.g. 22)'
+        required: true
+        type: number
+      month:
+        description: 'Release month (e.g. 5)'
+        required: true
+        type: number
+      minor:
+        description: 'Release minor (e.g. 0)'
+        required: true
+        type: number
+      confirm_release:
+        description: 'Confirm release number (e.g. 22.05.0)'
+        required: true
+        type: string
+      confirm_rc:
+        description: 'Confirm RC to release (e.g. 22.05.0-rc1)'
+        required: true
+        type: string
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  tag_prerelease:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Checkout brand
+        uses: actions/checkout@v3
+        with:
+          path: ./brand
+          token: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Checkout frontend
+        uses: actions/checkout@v3
+        with:
+          path: ./frontend
+          repository: karlw-bjss/specsavers_frontend
+          token: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Common git config
+        run: /bin/bash ./brand/.github/workflows/scripts/common_git_config.sh
+        env:
+          ACTOR: ${{ github.actor }}
+      
+      - id: getReleaseInfo
+        name: Get release info
+        run: /bin/bash ./brand/.github/workflows/scripts/get_release_info.sh
+        env:
+          RELEASE_YEAR: ${{ github.event.inputs.year }}
+          RELEASE_MONTH: ${{ github.event.inputs.month }}
+          RELEASE_MINOR: ${{ github.event.inputs.minor }}
+          GITHUB_TOKEN: ${{ secrets.SPECS_TOKEN }}
+          
+      - name: Exit if release exists
+        if: ${{ steps.getReleaseInfo.outputs.full_release_exists == 'T' }}
+        run: |
+          echo "::error::Already released"
+          exit 1
+          
+      - name: Exit if release branch does not exist
+        if: ${{ steps.getReleaseInfo.outputs.release_branch_exists == 'F' }}
+        run: |
+          echo "::error::Release branch does not exist"
+          exit 1
+      
+      - name: Exit if rc does not exist
+        if: ${{ steps.getReleaseInfo.outputs.current_rc == 'NONE' }}
+        run: |
+          echo "::error::RC does not exist"
+          exit 1
+      
+      - name: Extract details
+        run: |
+          echo "SOURCE_REF=$CURRENT_RC" >> $GITHUB_ENV
+          echo "TAG_NAME=$RELEASE_FULL" >> $GITHUB_ENV
+        env:
+          CURRENT_RC: ${{ steps.getReleaseInfo.outputs.current_rc }}
+          RELEASE_FULL: ${{ steps.getReleaseInfo.outputs.release_full }}
+     
+      - name: DEBUG
+        run: echo "::notice::Will tag $TAG_NAME from $SOURCE_REF"
+        
+      - name: Confirm release matches
+        if: ${{ github.event.inputs.confirm_release != steps.getReleaseInfo.outputs.release_full }}
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm_release }}
+        run: |
+          echo "::error::Full release does not match ($CONFIRM != $TAG_NAME)"
+          exit 1
+        
+      - name: Confirm RC matches
+        if: ${{ github.event.inputs.confirm_rc != steps.getReleaseInfo.outputs.current_rc }}
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm_rc != steps.getReleaseInfo.outputs.current_rc }}
+        run: |
+          echo "::error::RC does not match ($CONFIRM != $SOURCE_REF)"
+          exit 1
+        
+      - name: Tag
+        run: /bin/bash ./brand/.github/workflows/scripts/tag_release.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPECS_TOKEN }}
+      
+      - name: TODO Raise PRs back to develop (if needed)
+        run: echo "::notice::Raise PRs back to develop"
+     
+      - name: Success
+        run: |
+          echo "::notice::Here we would send any emails etc"
