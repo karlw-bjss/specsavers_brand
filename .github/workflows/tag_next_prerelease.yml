@@ -68,6 +68,22 @@ jobs:
         run: |
           echo "::error::Release branch does not exist"
           exit 1
+          
+      - name: Check for hanging dot branch on brand
+        if: ${{ steps.getReleaseInfo.outputs.dot_branch_exists_brand == 'T' }}
+        env:
+          DOT_BRANCH: ${{ steps.getReleaseInfo.outputs.dot_branch }}
+        run: |
+          echo "::error::Dot branch $DOT_BRANCH exists on brand, merge this before proceeding"
+          exit 1
+      
+      - name: Check for hanging dot branch on frontend
+        if: ${{ steps.getReleaseInfo.outputs.dot_branch_exists_frontend == 'T' }}
+        env:
+          DOT_BRANCH: ${{ steps.getReleaseInfo.outputs.dot_branch }}
+        run: |
+          echo "::error::Dot branch $DOT_BRANCH exists on frontend, merge this before proceeding"
+          exit 1
       
       - name: Extract details for beta
         if: ${{ github.event.inputs.prerelease_type == 'beta' }}
