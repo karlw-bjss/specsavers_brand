@@ -33,6 +33,8 @@ RELEASE_MAIN="$( printf '%02d.%02d' $RELEASE_YEAR $RELEASE_MONTH )"
 RELEASE_FULL="${RELEASE_MAIN}.${RELEASE_MINOR}"
 RELEASE_BRANCH="release-${RELEASE_MAIN}"
 
+DOT_BRANCH="dot-${RELEASE_FULL}"
+
 # Check for release branch
 for REPO in brand frontend; do
   cd $REPO
@@ -41,6 +43,12 @@ for REPO in brand frontend; do
     eval "RB_EXISTS_${REPO}=F"
   else
     eval "RB_EXISTS_${REPO}=T"
+  fi
+  
+  if [[ -z "$( git ls-remote --heads origin $DOT_BRANCH )" ]]; then
+    eval "DOT_EXISTS_${REPO}=F"
+  else
+    eval "DOT_EXISTS_${REPO}=T"
   fi
   
   cd ..
@@ -87,6 +95,9 @@ output release_full $RELEASE_FULL
 output release_branch $RELEASE_BRANCH
 output release_branch_exists $RELEASE_BRANCH_EXISTS
 output full_release_exists $FULL_RELEASE_EXISTS
+output dot_branch $DOT_BRANCH
+output dot_branch_exists_brand $DOT_EXISTS_brand
+output dot_branch_exists_frontend $DOT_EXISTS_frontend
 
 for TYPE in beta rc; do
   NEXT_T=NEXT_$TYPE
