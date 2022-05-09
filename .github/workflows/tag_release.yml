@@ -114,8 +114,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.SPECS_TOKEN }}
       
-      - name: TODO Raise PRs back to develop (if needed)
-        run: echo "::notice::Raise PRs back to develop"
+      - name: TODO Branch and raise PRs back to develop (if needed)
+        run: echo "::notice::Branch and raise PRs back to develop"
+     
+      - name: TODO Check for dot branch for next dot release and, if present, raise a PR into release branch
+        run: echo "::notice::Raise PRs for dot branches"
      
       - name: Success
         run: |
