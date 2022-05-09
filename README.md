@@ -33,6 +33,12 @@ been tagged. This should then follow the above procedure to create new beta, RC 
 - Tag `22.05.1-rc1` from the latest beta and test on RC.
 - Tag `22.05.1` and raise a PR back to develop (if needed).
 
+#### Accelerated "dot" release
+If a dot release must be tested on beta before the previous full or dot release has been tagged:
+- Create a branch to stage these changes called e.g. `dot-22.05.2`
+- Deploy this branch to beta and test
+- Once the previous release has been tagged, merge into the release branch and follow the procedure above
+
 ### Artifacts
 Included in the example automations is the generation of artifacts on the brand release for each release which bundles brand and frontend.
 If adopted, this would allow the deployment to the server to avoid use of git, instead just grabbing the artifact. It would also allow
